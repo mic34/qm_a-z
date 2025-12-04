@@ -25,7 +25,9 @@ const Game = {
     },
 
     // Initialize the game
-    init() {
+    async init() {
+        // Load dictionary first
+        await WordSystem.loadDictionary();
         this.setupEventListeners();
         AudioSystem.init();
         this.showModeSelection();
@@ -149,7 +151,7 @@ const Game = {
                     return;
                 }
                 tileEl.classList.add('dragging');
-                e.dataTransfer.setData('text/plain', tile.id.toString());
+                e.dataTransfer.setData('text / plain', tile.id.toString());
                 e.dataTransfer.effectAllowed = 'move';
             });
 
