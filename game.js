@@ -100,6 +100,11 @@ const Game = {
         document.getElementById('recall-tiles')?.addEventListener('click', () => this.recallTiles());
         document.getElementById('play-again')?.addEventListener('click', () => this.restartGame());
 
+        // Help modal
+        document.getElementById('help-btn')?.addEventListener('click', () => this.showHelp());
+        document.getElementById('close-help')?.addEventListener('click', () => this.hideHelp());
+        document.getElementById('got-it-btn')?.addEventListener('click', () => this.hideHelp());
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -109,10 +114,21 @@ const Game = {
                     this.submitWord();
                 }
             } else if (e.key === 'Escape') {
+                this.hideHelp();
                 PowerSystem.deactivatePower();
                 this.recallTiles();
             }
         });
+    },
+
+    // Show help modal
+    showHelp() {
+        document.getElementById('help-modal')?.classList.add('active');
+    },
+
+    // Hide help modal
+    hideHelp() {
+        document.getElementById('help-modal')?.classList.remove('active');
     },
 
     // Render tile rack

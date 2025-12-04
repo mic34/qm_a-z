@@ -111,11 +111,9 @@ const TileSystem = {
         el.draggable = true;
 
         if (tile.type === this.TYPES.SUPERPOSITION || tile.type === this.TYPES.ENTANGLED) {
+            // Show as "A/B" format for better readability
             el.innerHTML = `
-                <span class="tile-letter">
-                    ${tile.letters[0]}
-                    <span class="alt-letter">${tile.letters[1]}</span>
-                </span>
+                <span class="tile-letter">${tile.letters[0]}/${tile.letters[1]}</span>
                 <span class="tile-value">${tile.value}</span>
             `;
         } else if (tile.type === this.TYPES.WILD) {
@@ -124,8 +122,10 @@ const TileSystem = {
                 <span class="tile-value">★</span>
             `;
         } else {
+            // Stable tiles - ensure letter is not null
+            const letter = tile.letter || 'A';
             el.innerHTML = `
-                <span class="tile-letter">${tile.letter}</span>
+                <span class="tile-letter">${letter}</span>
                 <span class="tile-value">${tile.value}</span>
             `;
         }
@@ -150,13 +150,13 @@ const TileSystem = {
         const tiles = [];
         let hasEntangled = false;
 
-        for (let i = 0; i < count; i++) {
+        while (tiles.length < count) {
             // Ensure at least one entangled pair in rack
-            if (i === count - 2 && !hasEntangled) {
+            if (tiles.length === count - 2 && !hasEntangled) {
                 const pair = this.createEntangledPair();
                 tiles.push(pair[0], pair[1]);
                 hasEntangled = true;
-                break;
+                continue;
             }
 
             const tile = this.createTile();
@@ -166,7 +166,7 @@ const TileSystem = {
             tiles.push(tile);
         }
 
-        return tiles;
+        return tiles.slice(0, count); // Ensure exactly 'count' tiles
     },
 
     // Refill rack to target count

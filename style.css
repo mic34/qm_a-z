@@ -168,7 +168,7 @@ body {
 
 .stat-value {
     font-family: 'Orbitron', sans-serif;
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--quantum-cyan);
 }
@@ -267,7 +267,7 @@ body {
 }
 
 .power-icon {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
 }
 
 .power-name {
@@ -764,7 +764,7 @@ body {
 }
 
 .rack-slot .tile .tile-letter {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
 }
 
 .rack-controls {
@@ -844,7 +844,7 @@ body {
 
 .modal-content h2 {
     font-family: 'Orbitron', sans-serif;
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     color: var(--quantum-cyan);
     margin-bottom: var(--space-lg);
 }
@@ -1110,4 +1110,161 @@ button:focus-visible,
 .cell:focus-visible {
     outline: 2px solid var(--quantum-cyan);
     outline-offset: 2px;
+}
+/* ========================================
+   HELP BUTTON & MODAL
+   ======================================== */
+.help-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--quantum-cyan);
+    color: var(--quantum-cyan);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.help-btn:hover {
+    background: var(--quantum-cyan);
+    color: var(--bg-primary);
+    box-shadow: var(--glow-cyan);
+    transform: scale(1.1);
+}
+
+.help-content {
+    max-width: 700px;
+    max-height: 85vh;
+    overflow-y: auto;
+    text-align: left;
+    position: relative;
+}
+
+.help-content h2 {
+    text-align: center;
+    margin-bottom: var(--space-lg);
+}
+
+.close-btn {
+    position: absolute;
+    top: var(--space-md);
+    right: var(--space-md);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.close-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.help-sections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.help-section h3 {
+    font-size: 1.1rem;
+    color: var(--quantum-cyan);
+    margin-bottom: var(--space-sm);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid rgba(0, 247, 255, 0.2);
+}
+
+.help-list {
+    padding-left: var(--space-lg);
+    line-height: 1.8;
+}
+
+.help-list li {
+    margin-bottom: var(--space-xs);
+}
+
+.tile-types-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+}
+
+.tile-type-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.tile-example {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.superposition-ex { background: var(--tile-superposition); color: white; }
+.entangled-ex { background: var(--tile-entangled); color: white; }
+.wild-ex { background: var(--tile-wild); color: white; font-size: 1.1rem; }
+.stable-ex { background: var(--tile-stable); color: var(--text-primary); border: 2px solid var(--tile-border); }
+
+.zones-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.zone-help-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-xs) var(--space-sm);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-sm);
+}
+
+.zone-ex {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+}
+
+.well-ex { background: rgba(59, 130, 246, 0.3); color: var(--zone-well); }
+.phase-ex { background: rgba(139, 92, 246, 0.3); color: var(--zone-phase); }
+.deco-ex { background: rgba(239, 68, 68, 0.3); color: var(--zone-decoherence); }
+.ent-ex { background: rgba(34, 197, 94, 0.3); color: var(--zone-entangle); }
+.port-ex { background: rgba(249, 115, 22, 0.3); color: var(--zone-portal); }
+
+.help-content #got-it-btn {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    font-size: 1.1rem;
+}
+
+@media (max-width: 600px) {
+    .tile-types-grid { grid-template-columns: 1fr; }
+    .help-content { max-height: 80vh; }
 }
