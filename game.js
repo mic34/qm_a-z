@@ -24,11 +24,18 @@ const Game = {
         collapseCount: 0
     },
 
+    // Auto-Play System
+    autoPlayEnabled: true,
+    autoPlayTimer: null,
+    inactivityThreshold: 15000, // 15 seconds
+    isAutoPlaying: false,
+
     // Initialize the game
     async init() {
         // Load dictionary first
         await WordSystem.loadDictionary();
         this.setupEventListeners();
+        this.setupAutoPlay();
         AudioSystem.init();
         this.showModeSelection();
     },
@@ -60,6 +67,7 @@ const Game = {
         BoardSystem.init();
         PowerSystem.reset();
         CollapseSystem.reset();
+        this.resetAutoPlayTimer();
 
         // Apply mode-specific settings
         if (this.mode === 'time-attack') {
@@ -373,6 +381,8 @@ const Game = {
         // Check game end
         if (this.rack.length === 0) {
             this.endGame();
+        } else {
+            this.resetAutoPlayTimer();
         }
     },
 
@@ -456,6 +466,277 @@ const Game = {
         document.getElementById('game-over-modal').classList.remove('active');
         BoardSystem.reset();
         this.showModeSelection();
+    },
+
+    // Auto-Play Setup
+    setupAutoPlay() {
+        const toggle = document.getElementById('auto-play-toggle');
+        if (toggle) {
+            toggle.addEventListener('change', (e) => {
+                this.autoPlayEnabled = e.target.checked;
+                if (this.autoPlayEnabled) {
+                    this.resetAutoPlayTimer();
+                    this.showNotification('Auto-Play enabled', 'info');
+                } else {
+                    clearTimeout(this.autoPlayTimer);
+                    this.showNotification('Auto-Play disabled', 'info');
+                }
+            });
+        }
+
+        // Track user activity to reset timer
+        ['click', 'mousemove', 'keydown', 'touchstart'].forEach(event => {
+            document.addEventListener(event, () => this.resetAutoPlayTimer());
+        });
+    },
+
+    resetAutoPlayTimer() {
+        if (!this.autoPlayEnabled || !this.gameActive || this.isAutoPlaying) return;
+
+        clearTimeout(this.autoPlayTimer);
+        this.autoPlayTimer = setTimeout(() => this.triggerAutoPlay(), this.inactivityThreshold);
+    },
+
+    async triggerAutoPlay() {
+        if (!this.gameActive || this.isAutoPlaying) return;
+
+        this.isAutoPlaying = true;
+        this.showNotification('Auto-Play: Thinking...', 'info');
+
+        // Small delay for effect
+        await new Promise(r => setTimeout(r, 1000));
+
+        // Keep placing tiles until we have a valid word (at least 2 letters)
+        let attempts = 0;
+        const maxAttempts = 7; // Max tiles we can place from rack
+
+        while (attempts < maxAttempts && this.rack.length > 0) {
+            const move = this.findBestMove();
+            if (!move) break;
+
+            // Execute move - place tile
+            await this.placeTile(move.tile.id, move.row, move.col);
+            attempts++;
+
+            // Check if we have a valid word now
+            const newTiles = this.placedThisTurn.map(p => ({ row: p.cell.row, col: p.cell.col }));
+            const { validWords, invalidWords } = WordSystem.validateNewWords(BoardSystem.cells, newTiles);
+
+            // If we have a valid word and no invalid words, we're done placing
+            if (validWords.length > 0 && invalidWords.length === 0) {
+                await new Promise(r => setTimeout(r, 300)); // Small visual delay
+                this.showNotification(`Auto-Play formed: "${validWords.map(w => w.word).join(', ')}" - Press Submit!`, 'success');
+                break;
+            }
+
+            // If we created an invalid word, need to fix or stop
+            if (invalidWords.length > 0) {
+                // Keep going to see if we can extend to a valid word
+                await new Promise(r => setTimeout(r, 300));
+            }
+        }
+
+        // If no tiles placed at all
+        if (attempts === 0) {
+            this.showNotification('Auto-Play: No valid moves found, shuffling tiles', 'warning');
+            this.shuffleRack();
+        } else if (this.placedThisTurn.length > 0) {
+            // Check final state
+            const newTiles = this.placedThisTurn.map(p => ({ row: p.cell.row, col: p.cell.col }));
+            const { validWords } = WordSystem.validateNewWords(BoardSystem.cells, newTiles);
+            if (validWords.length === 0) {
+                this.showNotification(`Auto-Play placed ${attempts} tile(s). Build more or recall!`, 'info');
+            }
+        }
+
+        this.isAutoPlaying = false;
+        this.resetAutoPlayTimer();
+    },
+
+    findBestMove() {
+        // Smart AI: Use dictionary to find valid words that can be formed
+        const gridSize = 13;
+        const validMoves = [];
+
+        // Get available letters from rack (considering superposition/entangled tiles)
+        const getAvailableLetters = () => {
+            const letters = [];
+            for (const tile of this.rack) {
+                if (tile.collapsed && tile.letter) {
+                    letters.push(tile.letter.toUpperCase());
+                } else if (tile.letters) {
+                    // For superposition/entangled tiles, add both possible letters
+                    letters.push(...tile.letters.map(l => l.toUpperCase()));
+                } else if (tile.type === TileSystem.TYPES.WILD) {
+                    // Wild tiles can be any letter
+                    letters.push('*');
+                } else if (tile.type === TileSystem.TYPES.STABLE && tile.letter) {
+                    letters.push(tile.letter.toUpperCase());
+                }
+            }
+            return letters;
+        };
+
+        // Check if a word can be formed with available letters
+        const canFormWord = (word, availableLetters) => {
+            const lettersCopy = [...availableLetters];
+            for (const char of word.toUpperCase()) {
+                const idx = lettersCopy.indexOf(char);
+                if (idx !== -1) {
+                    lettersCopy.splice(idx, 1);
+                } else {
+                    // Check for wild card
+                    const wildIdx = lettersCopy.indexOf('*');
+                    if (wildIdx !== -1) {
+                        lettersCopy.splice(wildIdx, 1);
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
+
+        // Find dictionary words that can be formed with available letters
+        const findFormableWords = () => {
+            const availableLetters = getAvailableLetters();
+            const formableWords = [];
+
+            for (const word of WordSystem.dictionary) {
+                if (word.length >= 2 && word.length <= 7 && canFormWord(word, availableLetters)) {
+                    const score = WordSystem.calculateBaseScore(word);
+                    formableWords.push({ word, score });
+                }
+            }
+
+            // Sort by score (prioritize higher scoring words)
+            formableWords.sort((a, b) => b.score - a.score);
+            return formableWords.slice(0, 50); // Limit to top 50 candidates
+        };
+
+        // Get tile that matches a letter
+        const getTileForLetter = (letter) => {
+            letter = letter.toUpperCase();
+            // First try to find an exact match (stable tile)
+            for (const tile of this.rack) {
+                if (tile.collapsed && tile.letter && tile.letter.toUpperCase() === letter) {
+                    return tile;
+                }
+                if (tile.type === TileSystem.TYPES.STABLE && tile.letter && tile.letter.toUpperCase() === letter) {
+                    return tile;
+                }
+            }
+            // Then try superposition/entangled tiles
+            for (const tile of this.rack) {
+                if (tile.letters && tile.letters.some(l => l.toUpperCase() === letter)) {
+                    return tile;
+                }
+            }
+            // Finally try wild tiles
+            for (const tile of this.rack) {
+                if (tile.type === TileSystem.TYPES.WILD) {
+                    return tile;
+                }
+            }
+            return null;
+        };
+
+        // Handle first move - try to place a word starting at center
+        if (this.isFirstMove) {
+            const formableWords = findFormableWords();
+            for (const { word } of formableWords) {
+                const tile = getTileForLetter(word[0]);
+                if (tile) {
+                    return { tile, row: 6, col: 6, score: WordSystem.calculateBaseScore(word) };
+                }
+            }
+            // Fallback: just place any tile at center
+            if (this.rack.length > 0) {
+                return { tile: this.rack[0], row: 6, col: 6, score: 1 };
+            }
+            return null;
+        }
+
+        // Get all empty cells adjacent to filled cells
+        const potentialCells = [];
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                const cell = BoardSystem.getCell(r, c);
+                if (!cell.tile && BoardSystem.hasAdjacentTile(r, c)) {
+                    potentialCells.push({ row: r, col: c });
+                }
+            }
+        }
+
+        // Try to extend existing words on board
+        for (const tile of this.rack) {
+            for (const cellPos of potentialCells) {
+                const cell = BoardSystem.getCell(cellPos.row, cellPos.col);
+
+                // Simulate placement with the tile's possible letter
+                let testLetter = null;
+                if (tile.collapsed && tile.letter) {
+                    testLetter = tile.letter;
+                } else if (tile.letters) {
+                    testLetter = tile.letters[0]; // Test with first possible letter
+                } else if (tile.type === TileSystem.TYPES.STABLE && tile.letter) {
+                    testLetter = tile.letter;
+                }
+
+                if (!testLetter) continue;
+
+                // Create a mock tile for validation
+                const mockTile = { ...tile, letter: testLetter, collapsed: true };
+                const originalTile = cell.tile;
+                cell.tile = mockTile;
+
+                const newTiles = [{ row: cell.row, col: cell.col }];
+                const { validWords, invalidWords } = WordSystem.validateNewWords(BoardSystem.cells, newTiles);
+
+                // Undo placement
+                cell.tile = originalTile;
+
+                if (invalidWords.length === 0 && validWords.length > 0) {
+                    const totalScore = validWords.reduce((sum, w) => sum + WordSystem.calculateBaseScore(w.word), 0);
+                    validMoves.push({
+                        tile,
+                        row: cell.row,
+                        col: cell.col,
+                        score: totalScore,
+                        words: validWords.map(w => w.word)
+                    });
+                }
+            }
+        }
+
+        // Sort by score and return best move
+        validMoves.sort((a, b) => b.score - a.score);
+
+        if (validMoves.length > 0) {
+            const bestMove = validMoves[0];
+            console.log(`Auto-Play found: ${bestMove.words?.join(', ')} for ${bestMove.score} pts`);
+            return bestMove;
+        }
+
+        // Fallback: try any valid placement that doesn't create invalid words
+        for (const tile of this.rack) {
+            for (const cellPos of potentialCells) {
+                const cell = BoardSystem.getCell(cellPos.row, cellPos.col);
+                const originalTile = cell.tile;
+                cell.tile = tile;
+
+                const newTiles = [{ row: cell.row, col: cell.col }];
+                const { invalidWords } = WordSystem.validateNewWords(BoardSystem.cells, newTiles);
+
+                cell.tile = originalTile;
+
+                if (invalidWords.length === 0) {
+                    return { tile, row: cellPos.row, col: cellPos.col, score: 1 };
+                }
+            }
+        }
+
+        return null;
     },
 
     // Show notification

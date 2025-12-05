@@ -33,6 +33,13 @@
                     <span class="stat-label">Time</span>
                     <span class="stat-value" id="timer">--:--</span>
                 </div>
+                <div class="auto-play-control">
+                    <label class="switch" title="Toggle Auto-Play on Inactivity">
+                        <input type="checkbox" id="auto-play-toggle" checked>
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="auto-play-label">Auto-Play</span>
+                </div>
                 <button class="help-btn" id="help-btn" title="How to Play">❓</button>
             </div>
         </header>
@@ -175,11 +182,14 @@
                             <div class="zone-help-item"><span class="zone-ex well-ex">◎</span> <strong>Quantum
                                     Well</strong> - Picks best letter for you</div>
                             <div class="zone-help-item"><span class="zone-ex phase-ex">⟳</span>
-                                <strong>Phase-Shift</strong> - Swaps to alternate letter</div>
+                                <strong>Phase-Shift</strong> - Swaps to alternate letter
+                            </div>
                             <div class="zone-help-item"><span class="zone-ex deco-ex">⬡</span>
-                                <strong>Decoherence</strong> - Random collapse!</div>
+                                <strong>Decoherence</strong> - Random collapse!
+                            </div>
                             <div class="zone-help-item"><span class="zone-ex ent-ex">⧉</span>
-                                <strong>Entanglement</strong> - Links tile to one in your rack</div>
+                                <strong>Entanglement</strong> - Links tile to one in your rack
+                            </div>
                             <div class="zone-help-item"><span class="zone-ex port-ex">⌬</span> <strong>Portal</strong> -
                                 Teleports tile to partner portal</div>
                         </div>
@@ -269,6 +279,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="dictionary.js"></script>
     <script src="words.js"></script>
     <script src="tiles.js"></script>
     <script src="board.js"></script>

@@ -18,14 +18,16 @@ const WordSystem = {
     dictionary: new Set(),
     dictionaryLoaded: false,
 
-    // Load dictionary from JSON file
+    // Load dictionary from global variable (loaded via script tag)
     async loadDictionary() {
         try {
-            const response = await fetch('dictionary.json');
-            const data = await response.json();
-            this.dictionary = new Set(data.words.map(w => w.toLowerCase()));
-            this.dictionaryLoaded = true;
-            console.log(`Dictionary loaded: ${this.dictionary.size} words`);
+            if (typeof DICTIONARY_DATA !== 'undefined') {
+                this.dictionary = new Set(DICTIONARY_DATA.words.map(w => w.toLowerCase()));
+                this.dictionaryLoaded = true;
+                console.log(`Dictionary loaded: ${this.dictionary.size} words`);
+            } else {
+                throw new Error('Dictionary data not found');
+            }
         } catch (error) {
             console.error('Failed to load dictionary:', error);
             // Fallback minimal dictionary

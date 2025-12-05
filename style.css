@@ -1268,3 +1268,83 @@ button:focus-visible,
     .tile-types-grid { grid-template-columns: 1fr; }
     .help-content { max-height: 80vh; }
 }
+
+/* ========================================
+   AUTO-PLAY TOGGLE
+   ======================================== */
+.auto-play-control {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-right: var(--space-md);
+}
+
+.auto-play-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-tertiary);
+    transition: .4s;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-secondary);
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: rgba(0, 247, 255, 0.2);
+    border-color: var(--quantum-cyan);
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+    background-color: var(--quantum-cyan);
+    box-shadow: 0 0 10px var(--quantum-cyan);
+}
+
+.slider.round {
+    border-radius: 20px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+@media (max-width: 600px) {
+    .auto-play-control {
+        margin-right: 0;
+    }
+    .auto-play-label {
+        font-size: 0.8rem;
+    }
+}

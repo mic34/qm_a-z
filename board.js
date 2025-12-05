@@ -185,6 +185,12 @@ const BoardSystem = {
         return adjacent;
     },
 
+    // Check if cell has any adjacent tile
+    hasAdjacentTile(row, col) {
+        const adjacent = this.getAdjacentCells(row, col);
+        return adjacent.some(c => c.tile !== null);
+    },
+
     // Check if placement is valid (must be adjacent to existing tiles or center)
     isValidPlacement(row, col, isFirstMove) {
         const cell = this.getCell(row, col);
