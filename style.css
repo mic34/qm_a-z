@@ -1348,3 +1348,27 @@ input:checked + .slider:before {
         font-size: 0.8rem;
     }
 }
+
+/* ========================================
+   CHAOS MODE - MUTATION ANIMATION
+   ======================================== */
+.cell.mutating {
+    animation: mutate-effect 0.5s ease-out;
+}
+
+.cell.mutating .tile {
+    animation: tile-mutate 0.5s ease-out;
+}
+
+@keyframes mutate-effect {
+    0% { background: var(--bg-tertiary); }
+    50% { background: rgba(239, 68, 68, 0.5); box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+    100% { background: var(--bg-tertiary); }
+}
+
+@keyframes tile-mutate {
+    0% { transform: scale(1); filter: hue-rotate(0deg); }
+    50% { transform: scale(1.15); filter: hue-rotate(180deg); }
+    100% { transform: scale(1); filter: hue-rotate(360deg); }
+}
+

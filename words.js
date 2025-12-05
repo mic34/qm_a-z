@@ -56,7 +56,9 @@ const WordSystem = {
         let score = this.calculateBaseScore(word);
         let bonusMultiplier = 1.0;
         const bonuses = [];
+        const penalties = [];
 
+        // Apply bonuses
         if (bonusInfo.superpositionCount >= 3) {
             bonusMultiplier += 0.20;
             bonuses.push({ name: 'Superposition Mastery', bonus: '+20%' });
@@ -81,11 +83,25 @@ const WordSystem = {
             bonuses.push({ name: 'Good Length', bonus: '+10%' });
         }
 
+        // Calculate score with multiplier first
+        let finalScore = Math.round(score * bonusMultiplier);
+
+        // Apply penalties (not affected by multiplier, per GDD)
+        if (bonusInfo.brokenEntanglement) {
+            finalScore -= 10;
+            penalties.push({ name: 'Broken Entanglement', penalty: '-10' });
+        }
+        if (bonusInfo.invalidCollapseState) {
+            finalScore -= 5;
+            penalties.push({ name: 'Invalid Collapse', penalty: '-5' });
+        }
+
         return {
             baseScore: score,
-            finalScore: Math.round(score * bonusMultiplier),
+            finalScore: Math.max(0, finalScore), // Don't go negative
             bonusMultiplier,
-            bonuses
+            bonuses,
+            penalties
         };
     },
 

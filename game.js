@@ -30,6 +30,10 @@ const Game = {
     inactivityThreshold: 15000, // 15 seconds
     isAutoPlaying: false,
 
+    // Daily Challenge System
+    dailySeed: null,
+    dailyHighScore: 0,
+
     // Initialize the game
     async init() {
         // Load dictionary first
@@ -82,6 +86,11 @@ const Game = {
             BoardSystem.randomizeZones();
         }
 
+        // Daily Challenge - use date-seeded layout
+        if (this.mode === 'daily') {
+            this.setupDailyChallenge();
+        }
+
         // Generate initial rack
         this.rack = TileSystem.generateRack(7);
         this.renderRack();
@@ -97,9 +106,86 @@ const Game = {
             'classic': 'Classic Quantum',
             'time-attack': 'Time Attack',
             'chaos': 'Quantum Chaos',
-            'zen': 'Zen Mode'
+            'zen': 'Zen Mode',
+            'daily': 'Daily Challenge'
         };
         return names[this.mode] || 'Quantum Scrabble';
+    },
+
+    // Simple hash function for seeded random
+    hashCode(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+    },
+
+    // Seeded random number generator
+    seededRandom(seed) {
+        const x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    },
+
+    // Setup Daily Challenge with date-based seed
+    setupDailyChallenge() {
+        // Get today's date as seed
+        const today = new Date().toISOString().split('T')[0];
+        this.dailySeed = this.hashCode(today);
+
+        // Load previous high score
+        const savedScore = localStorage.getItem(`quantum-daily-${today}`);
+        this.dailyHighScore = savedScore ? parseInt(savedScore) : 0;
+
+        // Use seeded random to place zones consistently
+        let seed = this.dailySeed;
+
+        // Clear existing zones
+        for (const cell of BoardSystem.cells) {
+            if (cell.zone) {
+                cell.element.classList.remove(cell.zone);
+                cell.zone = null;
+            }
+        }
+
+        // Seeded zone placement
+        const zoneTypes = ['quantum-well', 'phase-shift', 'decoherence', 'entanglement', 'portal'];
+        const zoneCount = { 'quantum-well': 4, 'phase-shift': 4, 'decoherence': 3, 'entanglement': 4, 'portal': 4 };
+
+        for (const zoneType of zoneTypes) {
+            let placed = 0;
+            let attempts = 0;
+            while (placed < zoneCount[zoneType] && attempts < 100) {
+                const row = Math.floor(this.seededRandom(seed++) * 13);
+                const col = Math.floor(this.seededRandom(seed++) * 13);
+                const cell = BoardSystem.getCell(row, col);
+
+                if (cell && !cell.zone && !(row === 6 && col === 6)) {
+                    cell.zone = zoneType;
+                    cell.element.classList.add(zoneType);
+                    placed++;
+                }
+                attempts++;
+            }
+        }
+
+        // Setup portal pairs from seeded positions
+        const portals = BoardSystem.cells.filter(c => c.zone === 'portal');
+        BoardSystem.portalPairs = [];
+        for (let i = 0; i < portals.length; i += 2) {
+            if (portals[i + 1]) {
+                BoardSystem.portalPairs.push({
+                    a: [portals[i].row, portals[i].col],
+                    b: [portals[i + 1].row, portals[i + 1].col]
+                });
+            }
+        }
+
+        if (this.dailyHighScore > 0) {
+            this.showNotification(`Today's high score: ${this.dailyHighScore}`, 'info');
+        }
     },
 
     // Setup event listeners
@@ -313,13 +399,41 @@ const Game = {
             return;
         }
 
-        // Calculate score with bonuses
+        // Calculate score with bonuses and penalties
         let totalScore = 0;
+
+        // Detect broken entanglement - placing entangled tile without its pair
+        const entangledTiles = this.placedThisTurn.filter(p => p.tile.type === TileSystem.TYPES.ENTANGLED);
+        let brokenEntanglement = false;
+        for (const placed of entangledTiles) {
+            const entangleId = placed.tile.entangleId;
+            // Check if paired tile is also placed this turn
+            const pairedTile = this.placedThisTurn.find(p =>
+                p.tile.type === TileSystem.TYPES.ENTANGLED &&
+                p.tile.entangleId === entangleId &&
+                p.tile.id !== placed.tile.id
+            );
+            // Check if it exists elsewhere on board
+            const pairedOnBoard = BoardSystem.cells.find(c =>
+                c.tile &&
+                c.tile.type === TileSystem.TYPES.ENTANGLED &&
+                c.tile.entangleId === entangleId &&
+                c.tile.id !== placed.tile.id &&
+                !c.tile.placedThisTurn
+            );
+            if (!pairedTile && !pairedOnBoard) {
+                brokenEntanglement = true;
+                break;
+            }
+        }
+
         const bonusInfo = {
             superpositionCount: this.placedThisTurn.filter(p => p.tile.type === TileSystem.TYPES.SUPERPOSITION).length,
-            hasEntangledPair: this.placedThisTurn.some(p => p.tile.type === TileSystem.TYPES.ENTANGLED),
+            hasEntangledPair: entangledTiles.length >= 2 && !brokenEntanglement,
             allCleanCollapses: true,
-            usedPortal: this.placedThisTurn.some(p => p.tile.usedPortal)
+            usedPortal: this.placedThisTurn.some(p => p.tile.usedPortal),
+            brokenEntanglement: brokenEntanglement && this.mode !== 'zen',
+            invalidCollapseState: false // Could track collapse errors here
         };
 
         for (const wordInfo of validWords) {
@@ -335,11 +449,13 @@ const Game = {
             for (const bonus of result.bonuses) {
                 this.showNotification(`${bonus.name}: ${bonus.bonus}`, 'bonus');
             }
-        }
 
-        // Apply Zen mode (no penalties)
-        if (this.mode === 'zen') {
-            totalScore = Math.max(0, totalScore);
+            // Show penalties (not in Zen mode)
+            if (result.penalties && this.mode !== 'zen') {
+                for (const penalty of result.penalties) {
+                    this.showNotification(`${penalty.name}: ${penalty.penalty}`, 'error');
+                }
+            }
         }
 
         this.score += totalScore;
@@ -348,6 +464,7 @@ const Game = {
         AudioSystem.play('score');
         if (bonusInfo.hasEntangledPair || bonusInfo.superpositionCount >= 3) {
             AudioSystem.play('bonus');
+            AudioSystem.play('entangle');
         }
 
         this.showNotification(`+${totalScore} points! (${validWords.map(w => w.word).join(', ')})`, 'success');
@@ -369,10 +486,12 @@ const Game = {
         PowerSystem.advanceCooldowns();
         this.round++;
 
-        // Chaos mode - shift zones
+        // Chaos mode - shift zones and mutate tiles
         if (this.mode === 'chaos' && this.round % 3 === 0) {
             BoardSystem.randomizeZones();
-            this.showNotification('Quantum chaos! Zones shifted!', 'warning');
+            this.mutateTiles();
+            this.showNotification('Quantum chaos! Zones shifted & tiles mutated!', 'warning');
+            AudioSystem.play('chaos');
         }
 
         this.updateScoreDisplay();
@@ -737,6 +856,42 @@ const Game = {
         }
 
         return null;
+    },
+
+    // Chaos mode - mutate random tiles on the board
+    mutateTiles() {
+        const placedTiles = BoardSystem.cells.filter(c => c.tile && c.tile.collapsed && c.tile.letter);
+        if (placedTiles.length === 0) return;
+
+        // Shuffle and pick 1-2 tiles to mutate
+        const shuffled = placedTiles.sort(() => Math.random() - 0.5);
+        const toMutate = shuffled.slice(0, Math.min(2, Math.max(1, Math.floor(Math.random() * 3))));
+
+        for (const cell of toMutate) {
+            const oldLetter = cell.tile.letter;
+            const newLetter = this.getAdjacentLetter(oldLetter);
+            cell.tile.letter = newLetter;
+            cell.tile.value = WordSystem.getLetterValue(newLetter);
+            TileSystem.updateTileElement(cell.tile);
+
+            // Visual flash effect
+            cell.element.classList.add('mutating');
+            setTimeout(() => cell.element.classList.remove('mutating'), 500);
+        }
+
+        AudioSystem.play('mutation');
+    },
+
+    // Get a random adjacent letter in the alphabet
+    getAdjacentLetter(letter) {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const idx = alphabet.indexOf(letter.toUpperCase());
+        if (idx === -1) return letter;
+
+        // 50% chance to go up or down, wrapping around
+        const direction = Math.random() < 0.5 ? -1 : 1;
+        const newIdx = (idx + direction + 26) % 26;
+        return alphabet[newIdx];
     },
 
     // Show notification
